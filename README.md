@@ -7,7 +7,7 @@ Jump over obstacles, collect coins, and try to achieve the highest score!
 
 ## 🌐 Live Demo
 
-👉 https://aratik9.github.io/wordgame/
+👉 https://aratik9.github.io/jumping-game/
 
 ## ✨ Features
 
@@ -48,9 +48,7 @@ Jump over obstacles, collect coins, and try to achieve the highest score!
 
 1. Clone the repository:
 
-   ```bash
-   git clone https://github.com/aratik9/wordgame.git
-   ```
+ 
 
 2. Open the project folder.
 3. Open `index.html` in your browser.
@@ -68,7 +66,7 @@ wordgame/
 This game can be hosted using GitHub Pages.
 
 Repository:
-https://github.com/aratik9/wordgame
+https://aratik9.github.io/jumping-game/
 
 ## 🎯 Future Improvements
 
