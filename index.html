@@ -1,0 +1,306 @@
+
+<!DOCTYPE html>
+<html lang="mr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Super Jump Adventure</title>
+<style>
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #101827;
+  color: white;
+  text-align: center;
+}
+h1 { margin: 18px 0 5px; color: #ffd54a; }
+p { margin: 8px; color: #d7e3f4; }
+.game {
+  max-width: 900px;
+  margin: 18px auto;
+  padding: 0 12px;
+}
+canvas {
+  display: block;
+  width: 100%;
+  border: 3px solid white;
+  border-radius: 12px;
+  background: #87ceeb;
+  touch-action: manipulation;
+}
+.controls {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin: 14px;
+}
+button {
+  border: 0;
+  border-radius: 12px;
+  padding: 14px 22px;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  background: #ffd54a;
+  color: #172033;
+}
+button:active { transform: scale(.96); }
+#status { min-height: 26px; font-weight: bold; }
+</style>
+</head>
+<body>
+<h1>⭐ Super Jump Adventure</h1>
+<p>Coins गोळा कर आणि अडथळे टाळ!</p>
+
+<div class="game">
+  <canvas id="game" width="850" height="400"
+          aria-label="Jumping platform game"></canvas>
+
+  <div class="controls">
+    <button id="jumpBtn">⬆ JUMP</button>
+    <button id="restartBtn">↻ RESTART</button>
+  </div>
+  <p>Computer: Space / ↑ | Mobile: JUMP बटन</p>
+  <p id="status">गेम सुरू आहे!</p>
+</div>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+const statusEl = document.getElementById("status");
+
+const ground = 335;
+let player, obstacles, coins, score, speed, frame, running;
+let previousTime = 0;
+let animationId = 0;
+
+function reset() {
+  player = {
+    x: 90, y: ground - 48,
+    w: 34, h: 48,
+    vy: 0, onGround: true
+  };
+  obstacles = [];
+  coins = [];
+  score = 0;
+  speed = 4;
+  frame = 0;
+  running = true;
+  statusEl.textContent = "गेम सुरू आहे! Coins गोळा कर.";
+}
+
+function jump() {
+  if (!running) return;
+  if (player.onGround) {
+    player.vy = -12.5;
+    player.onGround = false;
+  }
+}
+
+document.getElementById("jumpBtn").addEventListener("pointerdown", e => {
+  e.preventDefault();
+  jump();
+});
+
+document.getElementById("restartBtn").addEventListener("click", () => {
+  reset();
+  previousTime = 0;
+  cancelAnimationFrame(animationId);
+  animationId = requestAnimationFrame(loop);
+});
+
+document.addEventListener("keydown", e => {
+  if (["Space", "ArrowUp"].includes(e.code)) {
+    e.preventDefault();
+    if (!e.repeat) jump();
+  }
+  if (e.code === "KeyR") {
+    reset();
+  }
+});
+
+function rect(x, y, w, h, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y, w, h);
+}
+
+function drawBackground() {
+  rect(0, 0, canvas.width, canvas.height, "#87ceeb");
+
+  // Sun
+  ctx.fillStyle = "#ffdf5d";
+  ctx.beginPath();
+  ctx.arc(740, 65, 32, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Clouds
+  for (const c of [{x:140,y:70},{x:420,y:105},{x:610,y:60}]) {
+    ctx.fillStyle = "white";
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, 19, 0, Math.PI * 2);
+    ctx.arc(c.x + 22, c.y - 8, 23, 0, Math.PI * 2);
+    ctx.arc(c.x + 46, c.y, 17, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Hills
+  ctx.fillStyle = "#5bc477";
+  for (let x = -20; x < 900; x += 170) {
+    ctx.beginPath();
+    ctx.arc(x, ground + 5, 90, Math.PI, 0);
+    ctx.fill();
+  }
+
+  rect(0, ground, 850, 65, "#9a6239");
+  rect(0, ground, 850, 9, "#38b764");
+
+  for (let x = 0; x < 850; x += 35) {
+    rect(x, ground + 22, 20, 3, "#b9814c");
+  }
+}
+
+function drawPlayer() {
+  const p = player;
+  // Original colorful character
+  rect(p.x + 5, p.y, 24, 8, "#e84848");
+  rect(p.x + 2, p.y + 8, 30, 8, "#f6b58c");
+  rect(p.x + 6, p.y + 12, 4, 5, "#222");
+  rect(p.x + 23, p.y + 12, 4, 5, "#222");
+  rect(p.x + 5, p.y + 20, 24, 13, "#3276e8");
+  rect(p.x, p.y + 21, 7, 14, "#f6b58c");
+  rect(p.x + 27, p.y + 21, 7, 14, "#f6b58c");
+  rect(p.x + 5, p.y + 33, 10, 13, "#263b70");
+  rect(p.x + 20, p.y + 33, 10, 13, "#263b70");
+  rect(p.x + 2, p.y + 44, 14, 4, "#563c2d");
+  rect(p.x + 19, p.y + 44, 14, 4, "#563c2d");
+}
+
+function drawCoin(c) {
+  ctx.fillStyle = "#ffcb35";
+  ctx.beginPath();
+  ctx.ellipse(c.x, c.y, 10, 13, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "#e58b15";
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  rect(c.x - 2, c.y - 6, 4, 12, "#fff0a6");
+}
+
+function overlap(a, b) {
+  return a.x < b.x + b.w &&
+         a.x + a.w > b.x &&
+         a.y < b.y + b.h &&
+         a.y + a.h > b.y;
+}
+
+function endGame() {
+  running = false;
+  statusEl.textContent = `गेम संपला! ⭐ Score: ${score}. Restart दाबून पुन्हा खेळ.`;
+}
+
+function update(dt) {
+  if (!running) return;
+  frame += dt;
+  speed = Math.min(8, 4 + score * 0.025);
+
+  player.vy += 0.55 * dt;
+  player.y += player.vy * dt;
+
+  if (player.y + player.h >= ground) {
+    player.y = ground - player.h;
+    player.vy = 0;
+    player.onGround = true;
+  }
+
+  if (frame > 90) {
+    frame = 0;
+    if (Math.random() < 0.7) {
+      obstacles.push({
+        x: canvas.width,
+        y: ground - 32,
+        w: 27,
+        h: 32
+      });
+    }
+    if (Math.random() < 0.8) {
+      coins.push({
+        x: canvas.width + 40,
+        y: ground - 65 - Math.random() * 65,
+        w: 20,
+        h: 26
+      });
+    }
+  }
+
+  obstacles.forEach(o => o.x -= speed * dt);
+  coins.forEach(c => c.x -= speed * dt);
+
+  obstacles = obstacles.filter(o => o.x + o.w > 0);
+  coins = coins.filter(c => c.x + c.w > 0);
+
+  for (const o of obstacles) {
+    if (overlap(player, o)) {
+      endGame();
+      break;
+    }
+  }
+
+  coins = coins.filter(c => {
+    if (overlap(player, c)) {
+      score += 10;
+      return false;
+    }
+    return true;
+  });
+
+  score += 0.025 * dt;
+}
+
+function draw() {
+  drawBackground();
+
+  for (const c of coins) drawCoin(c);
+
+  for (const o of obstacles) {
+    rect(o.x, o.y, o.w, o.h, "#8b4b2b");
+    rect(o.x + 5, o.y + 6, 7, 7, "#c68b52");
+    rect(o.x + 17, o.y + 19, 6, 7, "#c68b52");
+  }
+
+  drawPlayer();
+
+  ctx.fillStyle = "#172033";
+  ctx.font = "bold 21px Arial";
+  ctx.fillText("Score: " + Math.floor(score), 20, 32);
+
+  if (!running) {
+    ctx.fillStyle = "rgba(15,23,42,0.72)";
+    ctx.fillRect(170, 115, 510, 125);
+    ctx.fillStyle = "white";
+    ctx.textAlign = "center";
+    ctx.font = "bold 34px Arial";
+    ctx.fillText("GAME OVER!", 425, 165);
+    ctx.font = "20px Arial";
+    ctx.fillText("Score: " + Math.floor(score), 425, 205);
+    ctx.textAlign = "left";
+  }
+}
+
+function loop(timestamp) {
+  const dt = previousTime
+    ? Math.min((timestamp - previousTime) / 16.67, 2)
+    : 1;
+  previousTime = timestamp;
+  update(dt);
+  draw();
+  if (running) {
+    animationId = requestAnimationFrame(loop);
+  }
+}
+
+reset();
+animationId = requestAnimationFrame(loop);
+</script>
+</body>
+</html>
